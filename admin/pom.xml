@@ -4,12 +4,12 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <!-- 1. 继承Spring Boot父POM -->
+    <!-- 1. 继承Spring Boot父POM（统一版本） -->
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>2.2.5.RELEASE</version>
-        <relativePath/>
+        <relativePath/> <!-- 从Maven仓库拉取，不找本地 -->
     </parent>
 
     <!-- 项目基本信息 -->
@@ -18,12 +18,12 @@
     <version>1.0.0</version>
     <packaging>pom</packaging>
     <name>YFConstruction Admin</name>
-    <description>智慧工地系统后端父模块</description>
+    <description>萤丰智慧工地系统后端父模块</description>
 
-    <!-- 2. 统一管理依赖版本（正确标签：<<dependencies>） -->
+    <!-- 2. 统一管理所有依赖版本（核心修复：<dependencies> 而非 <<dependencies>） -->
     <dependencyManagement>
-        <dependencies>
-            <!-- Spring Cloud 版本 -->
+        <dependencies> <!-- 这里是正确的！之前多写了一个< -->
+            <!-- Spring Cloud 版本（适配Spring Boot 2.2.5） -->
             <dependency>
                 <groupId>org.springframework.cloud</groupId>
                 <artifactId>spring-cloud-dependencies</artifactId>
@@ -31,7 +31,7 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- Spring Cloud Alibaba 版本 -->
+            <!-- Spring Cloud Alibaba 版本（适配Nacos 1.2.1） -->
             <dependency>
                 <groupId>com.alibaba.cloud</groupId>
                 <artifactId>spring-cloud-alibaba-dependencies</artifactId>
@@ -39,39 +39,48 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- MySQL驱动 -->
+            <!-- MySQL驱动版本 -->
             <dependency>
                 <groupId>mysql</groupId>
                 <artifactId>mysql-connector-java</artifactId>
                 <version>5.1.47</version>
             </dependency>
-            <!-- Redis依赖 -->
+            <!-- Redis依赖版本 -->
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-starter-data-redis</artifactId>
                 <version>2.2.5.RELEASE</version>
             </dependency>
-        </</dependencies>
+        </dependencies> <!-- 对应闭合标签，也是单个< -->
     </dependencyManagement>
 
-    <!-- 3. 公共依赖（正确标签：<<dependencies>） -->
-    <dependencies>
+    <!-- 3. 公共依赖（所有子模块继承，同样修复<dependencies>） -->
+    <dependencies> <!-- 这里是正确的！之前多写了一个< -->
+        <!-- Spring Boot核心Web依赖 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+        <!-- 健康检查/监控依赖 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
+        <!-- MyBatis整合Spring Boot -->
         <dependency>
             <groupId>org.mybatis.spring.boot</groupId>
             <artifactId>mybatis-spring-boot-starter</artifactId>
             <version>2.1.3</version>
         </dependency>
-    </</dependencies>
+        <!-- 通用工具类 -->
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-all</artifactId>
+            <version>5.5.8</version>
+        </dependency>
+    </dependencies> <!-- 对应闭合标签 -->
 
-    <!-- 4. 子模块配置 -->
+    <!-- 4. 子模块配置（保持和原项目一致） -->
     <modules>
         <module>admin</module>
         <module>authorization</module>
@@ -88,7 +97,7 @@
         <module>workflow</module>
     </modules>
 
-    <!-- 5. 编译配置 -->
+    <!-- 5. Maven编译配置（指定JDK 1.8） -->
     <build>
         <plugins>
             <plugin>
@@ -96,9 +105,9 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.8.1</version>
                 <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
-                    <encoding>UTF-8</encoding>
+                    <source>1.8</source> <!-- 源码编译版本 -->
+                    <target>1.8</target> <!-- 目标运行版本 -->
+                    <encoding>UTF-8</encoding> <!-- 编码统一 -->
                 </configuration>
             </plugin>
         </plugins>
