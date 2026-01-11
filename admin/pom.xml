@@ -18,11 +18,11 @@
     <version>1.0.0</version>
     <packaging>pom</packaging>
     <name>YFConstruction Admin</name>
-    <description>萤丰智慧工地系统后端父模块</description>
+    <description>智慧工地系统后端父模块</description>
 
     <!-- 2. 统一管理依赖版本（正确标签：<<dependencies>） -->
     <dependencyManagement>
-        <<dependencies>
+        <dependencies>
             <!-- Spring Cloud 版本 -->
             <dependency>
                 <groupId>org.springframework.cloud</groupId>
@@ -55,7 +55,7 @@
     </dependencyManagement>
 
     <!-- 3. 公共依赖（正确标签：<<dependencies>） -->
-    <<dependencies>
+    <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
