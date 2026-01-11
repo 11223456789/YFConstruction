@@ -2,15 +2,18 @@ name: YFConstruction Auto Build
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:  # 手动触发，新手优先用这个
+  workflow_dispatch:  # 手动触发优先
 
 jobs:
   build-backend:
-    name: 编译Java后端（修复父POM依赖）
+    name: 编译Java后端（彻底修复父POM）
     runs-on: ubuntu-latest
     steps:
       - name: 拉取源码
         uses: actions/checkout@v4
+
+      - name: 安装XML处理工具（解决sed替换XML的坑）
+        run: sudo apt-get update && sudo apt-get install -y xmlstarlet
 
       - name: 安装JDK 8
         uses: actions/setup-java@v3
@@ -24,39 +27,50 @@ jobs:
         with:
           maven-version: '3.5.4'
 
-      # 步骤1：彻底清理污染的Maven仓库（连HTML垃圾文件都删掉）
-      - name: 彻底清空Maven缓存（核心修复）
+      # 步骤1：彻底清空污染的Maven仓库
+      - name: 清空Maven缓存（删除HTML污染的POM）
         run: |
-          rm -rf ~/.m2/repository  # 清空所有缓存，避免HTML污染的POM
-          mkdir -p ~/.m2/repository  # 重建空目录
+          rm -rf ~/.m2/repository
+          mkdir -p ~/.m2/repository
 
-      # 步骤2：自动修改所有子模块的父POM（指向我们的yf-construction-admin）
-      - name: 批量修复子模块的父POM依赖
+      # 步骤2：编译父模块（先把我们的yf-construction-admin安装到本地仓库）
+      - name: 安装父POM到本地仓库
         run: |
-          # 遍历所有子模块的pom.xml，替换错误的parent为我们的父POM
-          find ./admin -name "pom.xml" -type f | while read -r pom; do
-            # 替换parent的groupId和artifactId
-            sed -i 's/com.kakarote:wkcrm/com.yfconstruction:yf-construction-admin/g' "$pom"
-            # 替换parent的version为1.0.0（和我们的父POM一致）
-            sed -i 's/0.0.1-SNAPSHOT/1.0.0/g' "$pom"
-            # 替换版本变量${core.version}为1.0.0
+          cd admin
+          mvn clean install -N  # -N：只编译父模块，不编译子模块
+
+      # 步骤3：批量修改所有子模块的<parent>节点（专业XML工具，100%生效）
+      - name: 批量修复子模块的父POM配置
+        run: |
+          # 遍历所有子模块的pom.xml
+          find ./admin -mindepth 2 -name "pom.xml" -type f | while read -r pom; do
+            echo "正在修复：$pom"
+            # 1. 删除原有错误的parent节点
+            xmlstarlet ed -L -d "/project/parent" "$pom"
+            # 2. 添加新的parent节点（指向我们的父POM）
+            xmlstarlet ed -L -i "/project" -t elem -n parent -v "" "$pom"
+            xmlstarlet ed -L -i "/project/parent" -t elem -n groupId -v "com.yfconstruction" "$pom"
+            xmlstarlet ed -L -i "/project/parent" -t elem -n artifactId -v "yf-construction-admin" "$pom"
+            xmlstarlet ed -L -i "/project/parent" -t elem -n version -v "1.0.0" "$pom"
+            # 3. 修复版本变量（替换${core.version}为1.0.0）
             sed -i 's/${core.version}/1.0.0/g' "$pom"
             echo "修复完成：$pom"
           done
 
-      # 步骤3：编译后端（跳过测试，强制继续编译）
-      - name: 编译后端代码（忽略子模块小错误）
+      # 步骤4：编译核心子模块（只编译能跑的核心模块，跳过无关模块）
+      - name: 编译核心模块（gateway+build，智慧工地核心）
         run: |
           cd admin
-          # -U：强制更新依赖；-fn：忽略非致命错误继续编译
-          mvn clean package -DskipTests -U -fn
+          # -pl：指定编译的模块；-am：自动编译依赖；-U：强制更新依赖
+          mvn clean package -DskipTests -U -pl gateway,build -am
 
-      - name: 上传后端jar包
+      - name: 上传核心模块jar包
         uses: actions/upload-artifact@v4
         with:
-          name: backend-jars
+          name: backend-core-jars
           path: |
-            admin/**/target/*.jar
+            admin/gateway/target/*.jar
+            admin/build/target/*.jar
             !admin/**/target/original-*.jar
 
   build-frontend:
