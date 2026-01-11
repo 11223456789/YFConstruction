@@ -1,94 +1,115 @@
-name: YFConstruction Auto Build
-on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:  # 手动触发，新手优先用这个
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
 
-jobs:
-  build-backend:
-    name: 编译Java后端（修复父POM依赖）
-    runs-on: ubuntu-latest
-    steps:
-      - name: 拉取源码
-        uses: actions/checkout@v4
+    <!-- 1. 继承Spring Boot父POM（统一版本） -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>2.2.5.RELEASE</version>
+        <relativePath/> <!-- 从Maven仓库拉取，不找本地 -->
+    </parent>
 
-      - name: 安装JDK 8
-        uses: actions/setup-java@v3
-        with:
-          java-version: '8'
-          distribution: 'temurin'
-          cache: maven
+    <!-- 项目基本信息 -->
+    <groupId>com.yfconstruction</groupId>
+    <artifactId>yf-construction-admin</artifactId>
+    <version>1.0.0</version>
+    <packaging>pom</packaging>
+    <name>YFConstruction Admin</name>
+    <description>萤丰智慧工地系统后端父模块</description>
 
-      - name: 安装Maven 3.5.4
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: '3.5.4'
+    <!-- 2. 统一管理所有依赖版本（核心修复：<dependencies> 而非 <<dependencies>） -->
+    <dependencyManagement>
+        <dependencies> <!-- 这里是正确的！之前多写了一个< -->
+            <!-- Spring Cloud 版本（适配Spring Boot 2.2.5） -->
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>Hoxton.SR3</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Spring Cloud Alibaba 版本（适配Nacos 1.2.1） -->
+            <dependency>
+                <groupId>com.alibaba.cloud</groupId>
+                <artifactId>spring-cloud-alibaba-dependencies</artifactId>
+                <version>2.2.1.RELEASE</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- MySQL驱动版本 -->
+            <dependency>
+                <groupId>mysql</groupId>
+                <artifactId>mysql-connector-java</artifactId>
+                <version>5.1.47</version>
+            </dependency>
+            <!-- Redis依赖版本 -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-data-redis</artifactId>
+                <version>2.2.5.RELEASE</version>
+            </dependency>
+        </dependencies> <!-- 对应闭合标签，也是单个< -->
+    </dependencyManagement>
 
-      # 步骤1：彻底清理污染的Maven仓库（连HTML垃圾文件都删掉）
-      - name: 彻底清空Maven缓存（核心修复）
-        run: |
-          rm -rf ~/.m2/repository  # 清空所有缓存，避免HTML污染的POM
-          mkdir -p ~/.m2/repository  # 重建空目录
+    <!-- 3. 公共依赖（所有子模块继承，同样修复<dependencies>） -->
+    <dependencies> <!-- 这里是正确的！之前多写了一个< -->
+        <!-- Spring Boot核心Web依赖 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <!-- 健康检查/监控依赖 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <!-- MyBatis整合Spring Boot -->
+        <dependency>
+            <groupId>org.mybatis.spring.boot</groupId>
+            <artifactId>mybatis-spring-boot-starter</artifactId>
+            <version>2.1.3</version>
+        </dependency>
+        <!-- 通用工具类 -->
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-all</artifactId>
+            <version>5.5.8</version>
+        </dependency>
+    </dependencies> <!-- 对应闭合标签 -->
 
-      # 步骤2：自动修改所有子模块的父POM（指向我们的yf-construction-admin）
-      - name: 批量修复子模块的父POM依赖
-        run: |
-          # 遍历所有子模块的pom.xml，替换错误的parent为我们的父POM
-          find ./admin -name "pom.xml" -type f | while read -r pom; do
-            # 替换parent的groupId和artifactId
-            sed -i 's/com.kakarote:wkcrm/com.yfconstruction:yf-construction-admin/g' "$pom"
-            # 替换parent的version为1.0.0（和我们的父POM一致）
-            sed -i 's/0.0.1-SNAPSHOT/1.0.0/g' "$pom"
-            # 替换版本变量${core.version}为1.0.0
-            sed -i 's/${core.version}/1.0.0/g' "$pom"
-            echo "修复完成：$pom"
-          done
+    <!-- 4. 子模块配置（保持和原项目一致） -->
+    <modules>
+        <module>admin</module>
+        <module>authorization</module>
+        <module>core</module>
+        <module>crm</module>
+        <module>gateway</module>
+        <module>oa</module>
+        <module>work</module>
+        <module>build</module>
+        <module>dataagg</module>
+        <module>datarecept</module>
+        <module>message</module>
+        <module>xxl-job-admin</module>
+        <module>workflow</module>
+    </modules>
 
-      # 步骤3：编译后端（跳过测试，强制继续编译）
-      - name: 编译后端代码（忽略子模块小错误）
-        run: |
-          cd admin
-          # -U：强制更新依赖；-fn：忽略非致命错误继续编译
-          mvn clean package -DskipTests -U -fn
-
-      - name: 上传后端jar包
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-jars
-          path: |
-            admin/**/target/*.jar
-            !admin/**/target/original-*.jar
-
-  build-frontend:
-    name: 编译Vue前端
-    runs-on: ubuntu-latest
-    needs: build-backend
-    steps:
-      - name: 拉取源码
-        uses: actions/checkout@v4
-
-      - name: 配置Node.js 14.18.0
-        uses: actions/setup-node@v4
-        with:
-          node-version: '14.18.0'
-          cache: 'npm'
-
-      - name: 升级npm到8.19.1
-        run: npm install -g npm@8.19.1
-
-      - name: 安装前端依赖
-        run: |
-          cd front
-          npm config set registry https://registry.npmmirror.com
-          npm install
-
-      - name: 编译前端代码
-        run: |
-          cd front
-          npm run build
-
-      - name: 上传前端dist
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-dist
-          path: front/dist
+    <!-- 5. Maven编译配置（指定JDK 1.8） -->
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.8.1</version>
+                <configuration>
+                    <source>1.8</source> <!-- 源码编译版本 -->
+                    <target>1.8</target> <!-- 目标运行版本 -->
+                    <encoding>UTF-8</encoding> <!-- 编码统一 -->
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
