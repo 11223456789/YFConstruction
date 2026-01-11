@@ -18,7 +18,7 @@
     <version>1.0.0</version>
     <packaging>pom</packaging>
     <name>YFConstruction Admin</name>
-    <description>萤丰智慧工地系统后端父模块</description>
+    <description>智慧工地系统后端父模块</description>
 
     <!-- 2. 统一管理所有依赖版本（解决版本缺失问题） -->
     <dependencyManagement>
