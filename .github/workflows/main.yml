@@ -1,72 +1,89 @@
+# 工作流名称
 name: YFConstruction Build
 
-# 触发条件：1.push到main分支自动触发 2.手动触发（新增这行！）
+# 触发条件：1.push到main分支自动触发 2.手动触发
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:  # 新增：允许手动触发，这行加上就会显示Run workflow按钮
+  workflow_dispatch:  # 手动触发开关（显示Run workflow按钮）
 
+# 定义任务：先编译后端，再编译前端
 jobs:
+  # 任务1：编译Java后端（微服务）
   build-backend:
     name: 编译Java后端
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # 运行环境：Ubuntu最新版
     steps:
+      # 步骤1：拉取仓库源码
       - name: 拉取源码
         uses: actions/checkout@v4
 
+      # 步骤2：配置JDK 1.8（降级为v3，解决适配问题）
       - name: 配置JDK 1.8
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v3
         with:
-          java-version: ${{ secrets.JDK_VERSION }}
-          distribution: 'temurin'
-          cache: maven
+          java-version: ${{ secrets.JDK_VERSION }}  # 读取Secrets中的JDK版本（值为1.8）
+          distribution: 'temurin'  # JDK发行版（适配1.8）
+          cache: maven  # 缓存Maven依赖，加速下次打包
 
+      # 步骤3：配置Maven 3.5.4
       - name: 配置Maven 3.5.4
         uses: stCarolas/setup-maven@v5
         with:
-          maven-version: ${{ secrets.MAVEN_VERSION }}
+          maven-version: ${{ secrets.MAVEN_VERSION }}  # 读取Secrets中的Maven版本（值为3.5.4）
 
+      # 步骤4：编译后端代码（跳过测试加速打包）
       - name: 编译后端代码
         run: |
-          cd admin
-          mvn clean package -DskipTests
+          cd admin  # 进入后端根目录（适配萤丰项目结构）
+          mvn clean package -DskipTests  # Maven打包命令
 
-      - name: 上传后端打包产物
+      # 步骤5：上传后端打包产物（jar包）
+      - name: 上传后端jar包
         uses: actions/upload-artifact@v4
         with:
-          name: backend-jars
-          path: admin/**/target/*.jar
+          name: backend-jars  # 产物名称（下载时识别）
+          path: |  # 匹配所有模块的jar包
+            admin/**/target/*.jar
+            !admin/**/target/original-*.jar  # 排除原始jar包，只保留可运行jar
 
+  # 任务2：编译Vue前端（PC端/大屏），依赖后端编译完成
   build-frontend:
     name: 编译Vue前端
     runs-on: ubuntu-latest
-    needs: build-backend  # 依赖后端编译完成
+    needs: build-backend  # 后端编译完成后再执行前端
     steps:
+      # 步骤1：拉取仓库源码
       - name: 拉取源码
         uses: actions/checkout@v4
 
+      # 步骤2：配置Node.js 14.18.0
       - name: 配置Node.js 14.18.0
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ secrets.NODE_VERSION }}
-          cache: 'npm'
+          node-version: ${{ secrets.NODE_VERSION }}  # 读取Secrets中的Node版本（值为14.18.0）
+          cache: 'npm'  # 缓存npm依赖
 
+      # 步骤3：升级npm到8.19.1
       - name: 升级npm到8.19.1
-        run: npm install -g npm@${{ secrets.NPM_VERSION }}
+        run: npm install -g npm@${{ secrets.NPM_VERSION }}  # 读取Secrets中的npm版本（值为8.19.1）
 
+      # 步骤4：安装前端依赖（淘宝镜像加速）
       - name: 安装前端依赖
         run: |
-          cd front
-          npm config set registry https://registry.npmmirror.com
-          npm install
+          cd front  # 进入前端根目录（适配萤丰项目结构）
+          npm config set registry https://registry.npmmirror.com  # 切换淘宝镜像
+          npm install  # 安装依赖
 
+      # 步骤5：编译前端代码（生成dist目录）
       - name: 编译前端代码
         run: |
           cd front
-          npm run build
+          npm run build  # Vue打包命令
 
-      - name: 上传前端打包产物
+      # 步骤6：上传前端打包产物（dist目录）
+      - name: 上传前端dist目录
         uses: actions/upload-artifact@v4
         with:
-          name: frontend-dist
-          path: front/dist
+          name: frontend-dist  # 产物名称
+          path: front/dist  # 前端打包产物路径
